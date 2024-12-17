@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Square Payment API Test</title>
+    <script src="https://sandbox.web.squarecdn.com/v1/square.js"></script>
+</head>
+<body>
+    <h1>Square Payment Test</h1>
+    <div id="card-container"></div>
+    <button id="card-button">Pay</button>
+
+    <script>
+        async function initializeSquare() {
+            // Initialize the Square payments object with your application ID and environment
+            const payments = Square.payments('sandbox-sq0idb-4zgLtGoIhnWJMIubsLWGTw', 'sandbox');
+
+            // Create a card payment form
+            const card = await payments.card();
+            await card.attach('#card-container');
+
+            // Handle button click to tokenize the card
+            document.getElementById('card-button').addEventListener('click', async () => {
+                const result = await card.tokenize();
+                if (result.status === 'OK') {
+                    console.log("Nonce:", result.token); // Log the nonce
+
+                    // Send the nonce to your Django API for processing payment
+                    fetch('/api/process-payment/', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json' 
+                        },
+                        body: JSON.stringify({
+                            nonce: result.token,  // Card nonce (token)
+                            amount: 400,  // Amount in cents (e.g., 200 cents = $2.00)
+                            username: 'Forhad'
+                        }),
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log("Payment Response:", data); // Log the response
+                        if (data.status === "success") {
+                            alert("Payment successful!");
+                        } else {
+                            alert("Payment failed: " + data.errors);
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Payment error:', err);
+                        alert("An error occurred during payment processing.");
+                    });
+                } else {
+                    console.error('Error tokenizing card:', result.errors);
+                    alert("Failed to tokenize card.");
+                }
+            });
+        }
+
+        // Initialize Square payment form on page load
+        initializeSquare();
+    </script>
+</body>
+</html>
